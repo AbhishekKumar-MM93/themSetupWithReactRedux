@@ -18,6 +18,7 @@ const schema = new mongoose.Schema(
     blockedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "user",
+      default: null,
     },
   },
   {

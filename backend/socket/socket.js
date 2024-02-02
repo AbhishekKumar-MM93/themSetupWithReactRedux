@@ -3,12 +3,14 @@ import SOCKETUSER from "../model/socketUser.js";
 import USER from "../model/userModel.js";
 import MESSAGES from "../model/messageModel.js";
 import CHATS from "../model/chatModel.js";
+import moment from "moment";
 
 const JWT_SECRET = "secret";
 export default function socket(io) {
   io.use(async function (socket, next) {
     try {
       const token = socket.handshake.headers.authorization;
+
       if (!token) {
         throw new Error("not authorized");
       }
@@ -31,14 +33,14 @@ export default function socket(io) {
         const checkUser = await SOCKETUSER.findOne({ userId: userId });
         const socketId = socket.id;
         if (checkUser) {
-          console.log(socket.id);
-          let data = await SOCKETUSER.findOneAndUpdate(
+          let data = await SOCKETUSER.updateOne(
             { userId: userId },
             {
-              socketId: socketId,
-              isOnline: true,
-            },
-            { new: true }
+              $set: {
+                socketId: socketId,
+                isOnline: true,
+              },
+            }
           );
         } else {
           let data = await SOCKETUSER.create({
@@ -93,10 +95,70 @@ export default function socket(io) {
       }
     });
 
-    socket.on("getChats", async function (data) {
+    socket.on("sendMessage", async function (sendMessageListener) {
+      try {
+        const { senderId, receiverId, message, messageType } =
+          sendMessageListener;
+        const socketId = socket?.id;
+
+        const checkChat = await CHATS.findOne({
+          $or: [
+            { senderId: senderId, receiverId: receiverId },
+            { senderId: receiverId, receiverId: senderId },
+          ],
+        });
+
+        if (!checkChat) {
+          let chatData = await CHATS.create({ senderId, receiverId });
+        }
+
+        if (
+          (checkChat.isBlocked &&
+            checkChat.blockedBy?.toString() === senderId.toString()) ||
+          (checkChat.isBlocked &&
+            checkChat.blockedBy?.toString() === receiverId.toString())
+        ) {
+          if (checkChat.blockedBy.toString() === senderId.toString()) {
+            throw Error("You blocked this user so you can't send message");
+          } else {
+            throw Error("This user blocked you so you can't send message");
+          }
+        }
+        const chatId = checkChat._id;
+        const addNewMessaage = await MESSAGES.create({
+          chatId,
+          senderId,
+          receiverId,
+          message,
+          messageType,
+        });
+
+        const newMsg = {
+          messageId: addNewMessaage._id,
+          chatId: checkChat,
+          name: socket.loginUser.name,
+          image: socket.loginUser.image,
+          message: addNewMessaage.message,
+          lastMessage: moment(addNewMessaage.createdAt).fromNow(),
+        };
+
+        io.to(socketId).emit("newMessageSend", newMsg);
+        const receiverSide = await SOCKETUSER.findOne({ userId: receiverId });
+
+        if (receiverSide?.socketId) {
+          io.to(receiverSide.socketId).emit("newMessageReceive", newMsg);
+        }
+      } catch (error) {
+        console.error("Error in sending message", error.message);
+        throw error;
+      }
+    });
+
+    socket.on("getChatLastMessage", async function (data) {
       try {
         const userId = socket.loginUser._id;
 
+        const socketId = socket.id;
         const getChats = await CHATS.find({
           $or: [{ senderId: userId }, { receiverId: userId }],
         })
@@ -106,38 +168,53 @@ export default function socket(io) {
             { path: "receiverId", select: "name image" },
           ]);
 
-        return;
+        const chatList = [];
+        const length = getChats.length;
+
+        for (let i = 0; i < getChats.length; i++) {
+          const chat = getChats[i];
+
+          const { senderId, receiverId, isBlocked } = chat;
+
+          const lastMessage = await MESSAGES.find({
+            chatId: chat._id,
+            isDeleted: false,
+          })
+            .sort({ createdAt: -1 })
+            .limit(1);
+
+          const lstMsgData = lastMessage[0];
+          const messageData = {
+            messageType: lstMsgData.messageType,
+            message: lstMsgData.message,
+            createdAt: lstMsgData.createdAt,
+          };
+
+          const chatData = {
+            chatId: chat._id,
+            receiverId:
+              userId.toString() === senderId.toString() ? receiverId : senderId,
+            receiverName:
+              userId.toString() === senderId.toString()
+                ? chat.receiverId.name
+                : chat.senderId.name,
+            receiverImage:
+              userId.toString() === senderId.toString()
+                ? chat.receiverId.image
+                : chat.senderId.image,
+            messageData,
+            isBlocked,
+          };
+
+          chatList.push(chatData);
+        }
+        io.to(socketId).emit("getChatLastMessage", chatList);
       } catch (error) {
         console.log(error, "==== error roro ");
         throw Error("Error in getChats", error.message);
       }
     });
 
-    socket.on("sendMessage", async function (sendMessageListener) {
-      try {
-        console.log(sendMessageListener, "=================");
-        const { senderId, receiverId, message, messageType } =
-          sendMessageListener;
-
-        const checkMessages = await MESSAGES.findOne({
-          $or: [
-            { senderId: senderId, receiverId: receiverId },
-            { senderId: receiverId, receiverId: senderId },
-          ],
-        });
-
-        if (!checkMessages) {
-          const data = await MESSAGES.create({
-            senderId,
-            receiverId,
-            message,
-            messageType,
-          });
-        }
-      } catch (error) {
-        console.log(error, "=jdjdj djjd jdjjd jdjdj jdjd jdjd jjd jdjd j");
-        throw Error("Error in sending message", error.message);
-      }
-    });
+    socket.on("getMessagesList", async function (data) {});
   });
 }
