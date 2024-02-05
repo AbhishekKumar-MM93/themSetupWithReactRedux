@@ -17,7 +17,7 @@ const schema = new mongoose.Schema(
     messageType: {
       type: Number,
       enum: [0, 1],
-      default: 0, // o for text 1 for file
+      default: 0, // 0 for text 1 for file
     },
     isRead: {
       type: Number,

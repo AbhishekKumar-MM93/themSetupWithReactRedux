@@ -4,6 +4,7 @@ import USER from "../model/userModel.js";
 import MESSAGES from "../model/messageModel.js";
 import CHATS from "../model/chatModel.js";
 import moment from "moment";
+import socketUser from "../model/socketUser.js";
 
 const JWT_SECRET = "secret";
 export default function socket(io) {
@@ -27,8 +28,8 @@ export default function socket(io) {
   });
 
   io.on("connection", function (socket) {
-    try {
-      socket.on("connectUser", async function (data) {
+    socket.on("connectUser", async function (data) {
+      try {
         const { userId } = data;
         const checkUser = await SOCKETUSER.findOne({ userId: userId });
         const socketId = socket.id;
@@ -52,11 +53,11 @@ export default function socket(io) {
 
         let message = "Connected successfully";
         socket.emit("connectListener", message);
-      });
-    } catch (error) {
-      console.log(error, "err rr rr rr rr rr rr rr rr rr rrr rr rr rr rr ");
-      throw Error("Error in connecting user", error.message);
-    }
+      } catch (error) {
+        console.log(error, "err rr rr rr rr rr rr rr rr rr rrr rr rr rr rr ");
+        throw Error("Error in connecting user", error.message);
+      }
+    });
 
     socket.on("createChat", async function (data) {
       try {
@@ -77,7 +78,6 @@ export default function socket(io) {
         if (!checkChat) {
           const addNewChat = await CHATS.create({ senderId, receiverId });
         }
-
         let message = {
           message: "Chat created sussefully",
         };
@@ -85,7 +85,6 @@ export default function socket(io) {
         io.to(socketId).emit("chatCreated", message);
 
         const receiverSide = await SOCKETUSER.findOne({ userId: receiverId });
-
         if (receiverSide?.socketId) {
           io.to(receiverSide.socketId).emit("newChatCreated", message);
         }
@@ -101,7 +100,7 @@ export default function socket(io) {
           sendMessageListener;
         const socketId = socket?.id;
 
-        const checkChat = await CHATS.findOne({
+        let checkChat = await CHATS.findOne({
           $or: [
             { senderId: senderId, receiverId: receiverId },
             { senderId: receiverId, receiverId: senderId },
@@ -109,7 +108,7 @@ export default function socket(io) {
         });
 
         if (!checkChat) {
-          let chatData = await CHATS.create({ senderId, receiverId });
+          chatData = await CHATS.create({ senderId, receiverId });
         }
 
         if (
@@ -194,11 +193,11 @@ export default function socket(io) {
             chatId: chat._id,
             receiverId:
               userId.toString() === senderId.toString() ? receiverId : senderId,
-            receiverName:
+            name:
               userId.toString() === senderId.toString()
                 ? chat.receiverId.name
                 : chat.senderId.name,
-            receiverImage:
+            image:
               userId.toString() === senderId.toString()
                 ? chat.receiverId.image
                 : chat.senderId.image,
@@ -215,6 +214,122 @@ export default function socket(io) {
       }
     });
 
-    socket.on("getMessagesList", async function (data) {});
+    socket.on("getMessagesList", async function (data) {
+      const userId = socket.loginUser._id;
+      const socketId = socket.id;
+      const receiverId = data.receiverId;
+      if (!receiverId) {
+        throw Error("receiverId is required");
+      }
+
+      let getUsersChat = await CHATS.findOne({
+        $or: [
+          { senderId: userId, receiverId: receiverId },
+          { senderId: receiverId, receiverId: userId },
+        ],
+      });
+
+      if (!getUsersChat) {
+        getUsersChat = await CHATS.create({
+          senderId: userId,
+          receiverId: receiverId,
+        });
+      }
+
+      const { isBlocked, blockedBy } = getUsersChat;
+      if (isBlocked && blockedBy.toString() !== userId.toString()) {
+        let message = "You are blocked by this user so you can't send message";
+
+        io.to(socketId).emit("blockedUserStatus", {
+          isBlocked,
+          message,
+        });
+      }
+
+      await MESSAGES.updateMany(
+        { chatId: getUsersChat._id, isRead: 2 },
+        { $set: { isRead: 1 } }
+      );
+
+      const messagesList = await MESSAGES.find({
+        chatId: getUsersChat._id,
+        isDeleted: false,
+      })
+        .populate([
+          { path: "senderId", select: "name image" },
+          { path: "receiverId", select: "name image" },
+        ])
+        .sort({ createdAt: -1 });
+
+      io.to(socketId).emit("getMessagesList", messagesList);
+    });
+
+    socket.on("editMessage", async function (data) {
+      try {
+        const socketId = socket?.id;
+        const { messageId, message, receiverId } = data;
+        if (!messageId) {
+          throw Error("No messageId");
+        }
+
+        const updateMessaage = await MESSAGES.findByIdAndUpdate(
+          messageId,
+          { message: message },
+          { new: true }
+        );
+
+        io.to(socketId).emit("editMessageListener", updateMessaage);
+
+        const receiverSide = await SOCKETUSER.findOne({ userId: receiverId });
+        if (receiverSide?.socketId) {
+          io.to(receiverSide.socketId).emit(
+            "editMessageListener",
+            updateMessaage
+          );
+        }
+      } catch (error) {
+        throw Error(error.message);
+      }
+    });
+
+    socket.on("deleteMessage", async function (data) {
+      try {
+        const socketId = socket?.id;
+        const { messageId, message, receiverId } = data;
+        if (!messageId) {
+          throw Error("No messageId");
+        }
+
+        const updateMessaage = await MESSAGES.findByIdAndUpdate(
+          messageId,
+          { isDeleted: true, deletedBy: socket.loginUser._id },
+          { new: true }
+        );
+
+        io.to(socketId).emit("deleteMessageListener", updateMessaage);
+
+        const receiverSide = await SOCKETUSER.findOne({ userId: receiverId });
+        if (receiverSide?.socketId) {
+          io.to(receiverSide.socketId).emit(
+            "deleteMessageListener",
+            updateMessaage
+          );
+        }
+      } catch (error) {
+        throw Error(error.message);
+      }
+    });
+
+    socket.on("disconnect", async function () {
+      try {
+        const userId = socket.loginUser._id;
+        const disconnect = await socketUser.updateOne(
+          { userId },
+          { $set: { isOnline: false } }
+        );
+      } catch (error) {
+        throw Error(error.message);
+      }
+    });
   });
 }
