@@ -153,7 +153,7 @@ export default function socket(io) {
       }
     });
 
-    socket.on("getChatLastMessage", async function (data) {
+    socket.on("getChatList", async function (data) {
       try {
         const userId = socket.loginUser._id;
 
@@ -207,7 +207,7 @@ export default function socket(io) {
 
           chatList.push(chatData);
         }
-        io.to(socketId).emit("getChatLastMessage", chatList);
+        io.to(socketId).emit("getChatListListener", chatList);
       } catch (error) {
         console.log(error, "==== error roro ");
         throw Error("Error in getChats", error.message);
@@ -302,7 +302,10 @@ export default function socket(io) {
 
         const updateMessaage = await MESSAGES.findByIdAndUpdate(
           messageId,
-          { isDeleted: true, deletedBy: socket.loginUser._id },
+          {
+            $set: { isDeleted: true },
+            $push: { deletedBy: { user: socket.loginUser._id } },
+          },
           { new: true }
         );
 
@@ -317,6 +320,82 @@ export default function socket(io) {
         }
       } catch (error) {
         throw Error(error.message);
+      }
+    });
+
+    socket.on("clearMessage", async function () {
+      try {
+        const { receiverId } = data;
+        const socketId = socket.id;
+        const userId = socket.loginUser._id;
+        const isValidReceverId = await USER.findOne({ _id: receiverId });
+        if (!isValidReceverId) throw "Invailed receiverId";
+        const clearMessageFilter = {
+          $or: [
+            { senderId: userId, receiverId },
+            { senderId: receiverId, receiverId: userId },
+          ],
+        };
+        const updateQuery = {
+          $push: { deleteBy: { user: userId } },
+        };
+        await MESSAGES.updateMany(clearMessageFilter, updateQuery);
+        io.to(socketId).emit("clear-messages-status", {
+          message: "Message clear sussesfully",
+        });
+      } catch (error) {
+        throw error;
+      }
+    });
+
+    socket.on("blockUser", async function (data) {
+      try {
+        const socketId = socket.id;
+        const userId = socket.loginUser._id;
+        const { receiverId } = data;
+        const filter = {
+          $or: [
+            { senderId: userId, receiverId },
+            { senderId: receiverId, receiverId: userId },
+          ],
+        };
+        const userChat = await CHATS.findOne(filter);
+        if (!userChat) throw "Chat not found";
+        let blockStatus = false;
+        let message = "";
+        if (userChat.isBlocked === true) {
+          await CHATS.updateOne(filter, {
+            $set: { isBlocked: false },
+          });
+          blockStatus = false;
+          message = "User unblocked succesfully";
+          io.to(socketId).emit("block-user-status", {
+            message,
+          });
+        } else {
+          await CHATS.updateOne(filter, {
+            $set: { isBlocked: true, blockedBy: userId },
+          });
+          blockStatus = true;
+          message = "User blocked succesfully";
+          io.to(socketId).emit("block-user-status", {
+            message,
+          });
+        }
+        const isRecever = await SOCKETUSER.findOne({ userId: receiverId });
+        if (isRecever) {
+          const { isOnline } = isRecever;
+          if (isOnline) {
+            io.to(isRecever.socketId).emit("user-block-status-notifyer", {
+              isBlocked: blockStatus,
+              message: blockStatus
+                ? `You are blocked by ${socket?.loginUser?.name}`
+                : "",
+            });
+          }
+        }
+      } catch (err) {
+        errorNotifyer(io, socket, err);
       }
     });
 

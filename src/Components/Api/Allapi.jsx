@@ -1,5 +1,4 @@
 import axios from "axios";
-import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
 export const loginApi = async (data) => {
@@ -39,7 +38,6 @@ export const allUserApi = async (page, pageSize, searchQuery, auth) => {
 export const allProductApi = async (page, pageSize, search) => {
   try {
     const params = { page, pageSize, search };
-
     const response = await axios.get(
       `http://localhost:9111/user/getallproducts`,
       {

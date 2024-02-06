@@ -15,48 +15,13 @@ function Chat() {
           <div class="sidebar-left">
             <div class="sidebar">
               {/* <!-- Admin user profile area --> */}
-              <div class="chat-profile-sidebar">
-                <div class="ps__rail-x" style={{ left: "0px", bottom: "0px" }}>
-                  <div
-                    class="ps__thumb-x"
-                    tabindex="0"
-                    style={{ left: "0px", width: "0px" }}
-                  ></div>
-                </div>
-                <div
-                  class="ps__rail-y"
-                  style={{ top: "0px", height: "285px", right: "0px" }}
-                >
-                  <div
-                    class="ps__thumb-y"
-                    tabindex="0"
-                    style={{ top: "0px", height: "124px" }}
-                  ></div>
-                </div>
-              </div>
+
               {/* <!-- User Details end --> */}
             </div>
             {/* <!--/ Admin user profile area --> */}
 
             {/* <!-- Chat Sidebar area --> */}
             <div class="sidebar-content">
-              <span class="sidebar-close-icon">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  class="feather feather-x"
-                >
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-              </span>
               {/* <!-- Sidebar header start --> */}
               <div class="chat-fixed-search">
                 <div class="d-flex align-items-center w-100">
@@ -105,7 +70,7 @@ function Chat() {
               {/* <!-- Sidebar Users start --> */}
               <div
                 id="users-list"
-                class="chat-user-list-wrapper list-group ps ps--active-y"
+                class="chat-user-list-wrapper list-group ps ps--active-y "
               >
                 <h4 class="chat-list-title">Chats</h4>
                 <ul class="chat-users-list chat-list media-list">
@@ -176,6 +141,7 @@ function Chat() {
                     <h6 class="mb-0">No Chats Found</h6>
                   </li>
                 </ul>
+
                 <h4 class="chat-list-title">Contacts</h4>
                 <ul class="chat-users-list contact-list media-list">
                   <li>
@@ -298,64 +264,11 @@ function Chat() {
                       </p>
                     </div>
                   </li>
-                  <li>
-                    <span class="avatar">
-                      <img
-                        src="../../../app-assets/images/portrait/small/avatar-s-3.jpg"
-                        height="42"
-                        width="42"
-                        alt="Generic placeholder image"
-                      />
-                    </span>
-                    <div class="chat-info">
-                      <h5 class="mb-0">Elizabeth Elliott</h5>
-                      <p class="card-text text-truncate">
-                        Candy canes ice cream jelly beans carrot cake chocolate
-                        bar pastry candy jelly-o.
-                      </p>
-                    </div>
-                  </li>
-                  <li>
-                    <span class="avatar">
-                      <img
-                        src="../../../app-assets/images/portrait/small/avatar-s-13.jpg"
-                        height="42"
-                        width="42"
-                        alt="Generic placeholder image"
-                      />
-                    </span>
-                    <div class="chat-info">
-                      <h5 class="mb-0">Nelson D'souza</h5>
-                      <p class="card-text text-truncate">
-                        Macaroon candy canes apple pie soufflé lemon drops
-                        chocolate cake chocolate sweet roll.
-                      </p>
-                    </div>
-                  </li>
+
                   <li class="no-results" style={{ display: "list-item" }}>
                     <h6 class="mb-0">No Contacts Found</h6>
                   </li>
                 </ul>
-                <div
-                  class="ps__rail-x"
-                  style={{ left: "0px", bottom: "-114px" }}
-                >
-                  <div
-                    class="ps__thumb-x"
-                    tabindex="0"
-                    style={{ left: "0px", width: "0px" }}
-                  ></div>
-                </div>
-                <div
-                  class="ps__rail-y"
-                  style={{ top: "114px", height: "185px", right: "0px" }}
-                >
-                  <div
-                    class="ps__thumb-y"
-                    tabindex="0"
-                    style={{ top: "23px", height: "38px" }}
-                  ></div>
-                </div>
               </div>
               {/* <!-- Sidebar Users end --> */}
             </div>

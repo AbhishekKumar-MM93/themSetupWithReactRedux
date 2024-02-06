@@ -29,11 +29,11 @@ const schema = new mongoose.Schema(
       default: false,
     },
 
-    deletedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
+    deletedBy: [
+      {
+        user: { type: String },
+      },
+    ],
     chatId: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
