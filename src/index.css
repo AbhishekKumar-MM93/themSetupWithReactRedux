@@ -1,0 +1,9 @@
+.auth-wrapper .auth-footer-btn .btn:not(:last-child) {
+  margin-right: 1rem;
+}
+.auth-wrapper .auth-footer-btn .btn {
+  padding: 0.6rem !important;
+}
+.auth-wrapper .auth-bg {
+  background-color: #fff;
+}
